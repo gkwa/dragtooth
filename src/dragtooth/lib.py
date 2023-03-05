@@ -12,10 +12,12 @@ from . import model
 
 _logger = logging.getLogger(__name__)
 
-pat = re.compile(
+session_pair_pat = re.compile(
     r"Session pair has been generated\(dec\)"
     r" (?P<dec>\$[^:]+)\s+:\s+(?P<enc>\$[^:]+) \(enc\)"
 )
+
+sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 
 CONNECT_TIMEOUT_SEC = 2
 
@@ -87,6 +89,15 @@ def populate_login_session(credentials: model.Credentials) -> None:
     _logger.debug(msg)
 
 
+def parse_sessions_from_status_endpoint() -> None:
+    response = module_session.get(status_url)
+
+    # expect html table of encoder session ids and decoder session ids
+    _logger.debug(response.text)
+
+    return response.text
+
+
 def html_to_text(html: str):
     soup = bs4.BeautifulSoup(html, "html.parser")
     text = soup.get_text().strip()
@@ -142,13 +153,24 @@ def post_session_delete_request(session: model.LightSession) -> str:
 
 def generate_session_from_text(text: str, port: int) -> model.LightSession:
     for line in text.splitlines():
-        mo = pat.search(line)
+        mo = session_pair_pat.search(line)
         if mo:
             dec = mo.group("dec").strip()
             enc = mo.group("enc").strip()
             return model.LightSession(encoder=enc, decoder=dec, port=port)
 
     return model.LightSession(encoder="", decoder="", port=port)
+
+
+def check_sls_offline():
+    response = module_session.get(status_url)
+    _logger.debug(response.text)
+    text = response.text
+    mo = sls_offline_pat.search(text)
+    if mo:
+        raise ValueError(
+            "sls process isn't running according" f" to parsing {status_url}"
+        )
 
 
 def main(args):
@@ -159,13 +181,21 @@ def main(args):
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
+    check_sls_offline()
+
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
+
     starting_port = 2000
     msg = (
         f"request to create {session_count} "
         f"sessions, starting at port {starting_port}"
     )
     _logger.info(msg)
+
+    status_page = parse_sessions_from_status_endpoint()
+    _logger.debug(f"{status_page=}")
+
+    check_sls_offline()
 
     for offset in range(session_count):
         port = starting_port + offset
