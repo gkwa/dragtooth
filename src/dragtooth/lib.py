@@ -150,9 +150,11 @@ def main(args):
     session_count = args.session_count
     session_lifetime = datetime.timedelta(hours=args.session_lifetime_hours)
     starting_port = 2000
-    _logger.info(
-        f"request to create {session_count} sessions, starting at port {starting_port}"
+    msg = (
+        f"request to create {session_count} "
+        f"sessions, starting at port {starting_port}"
     )
+    _logger.info(msg)
 
     for offset in range(session_count):
         port = starting_port + offset
@@ -160,4 +162,8 @@ def main(args):
         html = post_session_create_request(port=port, lifetime=session_lifetime)
         text = html_to_text(html)
         session = generate_session_from_text(text, port=port)
-        _logger.info(f"session pair generated or re-fetched for {port=} {session=}")
+        msg = (
+            "session pair generated or re-fetched for "
+            f"{port=} {session=}, {session_count-offset:,} remaining"
+        )
+        _logger.info(msg)
