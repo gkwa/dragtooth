@@ -53,43 +53,47 @@ def get_credentials_from_env() -> model.Credentials:
     return model.Credentials(login, password)
 
 
-def generate_request_session(credentials: model.Credentials) -> None:
-    # all cookies received will be stored in the session object
-
-    payload = {"login": credentials.login, "password": credentials.password}
-    url = "http://tl3.streambox.com/light/light_status.php"
-
+def check_host_is_running(endpoint: str) -> None:
     try:
-        _logger.debug(f"feching {url}")
-        response = requests.get(url, timeout=CONNECT_TIMEOUT_SEC)
-        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xxx
+        _logger.debug(f"feching {endpoint}")
+        response = requests.get(endpoint, timeout=CONNECT_TIMEOUT_SEC)
+
+        # Raises a HTTPError if the status is 4xx, 5xxx
+        response.raise_for_status()
 
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-        _logger.critical(f"can't reach {url}")
-        sys.exit(-1)
+        _logger.critical(f"can't reach {endpoint}")
+        raise
 
     except requests.exceptions.HTTPError:
         _logger.critical("4xx, 5xx")
-        sys.exit(-1)
+        raise
 
     else:
-        _logger.debug(f"Great!  I'm able to reach {url}")
+        _logger.debug(f"Great!  I'm able to reach {endpoint}")
 
+
+def generate_request_session(credentials: model.Credentials) -> None:
+    url = "http://tl3.streambox.com/light/light_status.php"
+    check_host_is_running(endpoint=url)
+
+    payload = {"login": credentials.login, "password": credentials.password}
     _logger.debug(f"submitting post request to {url} with {payload=}")
     response = curSession.post(url, data=payload, timeout=CONNECT_TIMEOUT_SEC)
+    _logger.debug(response)
 
 
 def html_to_text(html: str):
     soup = bs4.BeautifulSoup(html, "html.parser")
-    text = soup.get_text()
-    _logger.debug(f"parse_it: parsed as {text}")
+    text = soup.get_text().strip()
+    text = text.strip()
+    _logger.debug(f"beautiful soup parses html as text like this: {text}")
 
     return text
 
 
 def post_session_create_request(port: int, lifetime: datetime.timedelta) -> str:
     url = "http://tl3.streambox.com/light/sreq.php"
-
     payload = {
         "port1": port,
         "port2": port,
@@ -133,7 +137,6 @@ def post_session_delete_request(session: model.LightSession) -> str:
 
 
 def generate_session_from_text(text: str, port: int) -> model.LightSession:
-    text = text.strip()
     for line in text.splitlines():
         mo = pat.search(line)
         if mo:
@@ -141,14 +144,16 @@ def generate_session_from_text(text: str, port: int) -> model.LightSession:
             enc = mo.group("enc").strip()
             return model.LightSession(encoder=enc, decoder=dec, port=port)
 
-    return model.LightSession(encoder="", deocder="", port=port)
+    return model.LightSession(encoder="", decoder="", port=port)
 
 
 def main(args):
+    session_count = args.session_count
+    session_lifetime_hours = args.session_lifetime_hours
+
     creds = get_credentials_from_env()
     generate_request_session(credentials=creds)
-    session_count = args.session_count
-    session_lifetime = datetime.timedelta(hours=args.session_lifetime_hours)
+    session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
     starting_port = 2000
     msg = (
         f"request to create {session_count} "
@@ -164,6 +169,6 @@ def main(args):
         session = generate_session_from_text(text, port=port)
         msg = (
             "session pair generated or re-fetched for "
-            f"{port=} {session=}, {session_count-offset:,} remaining"
+            f"{port=} {session=}, {session_count-offset-1:,} remaining"
         )
         _logger.info(msg)
