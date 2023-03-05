@@ -8,7 +8,7 @@ class Credentials:
 
 
 @dataclasses.dataclass
-class SessionPair:
+class LightSession:
     encoder: str
     decoder: str
     port: int
