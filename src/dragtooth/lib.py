@@ -96,7 +96,7 @@ def html_to_text(html: str):
     return text
 
 
-def post_session_create_request(port: int, lifetime: datetime.timedelta) -> str:
+def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
     url = "http://tl3.streambox.com/light/sreq.php"
     payload = {
         "port1": port,
@@ -170,7 +170,7 @@ def main(args):
     for offset in range(session_count):
         port = starting_port + offset
         _logger.debug(f"{port=}, {offset=}")
-        html = post_session_create_request(port=port, lifetime=session_lifetime)
+        html = post_sessioncreate_request(port=port, lifetime=session_lifetime)
         text = html_to_text(html)
         session = generate_session_from_text(text, port=port)
         msg = (
