@@ -20,7 +20,8 @@ pat = re.compile(
 CONNECT_TIMEOUT_SEC = 2
 
 # use requests's session auto manage cookies
-curSession = requests.Session()
+module_session = requests.Session()
+status_url = "http://tl3.streambox.com/light/light_status.php"
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -74,13 +75,16 @@ def check_host_is_running(endpoint: str) -> None:
 
 
 def generate_request_session(credentials: model.Credentials) -> None:
-    url = "http://tl3.streambox.com/light/light_status.php"
-    check_host_is_running(endpoint=url)
-
     payload = {"login": credentials.login, "password": credentials.password}
-    _logger.debug(f"submitting post request to {url} with {payload=}")
-    response = curSession.post(url, data=payload, timeout=CONNECT_TIMEOUT_SEC)
-    _logger.debug(response)
+
+    _logger.debug(f"submitting post request to {status_url} with {payload=}")
+    response = module_session.post(
+        status_url, data=payload, timeout=CONNECT_TIMEOUT_SEC
+    )
+
+    msg = f"posting payload {payload} to " f"{status_url} returns response {response}"
+
+    _logger.debug(msg)
 
 
 def html_to_text(html: str):
@@ -102,7 +106,7 @@ def post_session_create_request(port: int, lifetime: datetime.timedelta) -> str:
     }
 
     try:
-        response = curSession.post(url, data=payload, timeout=5)
+        response = module_session.post(url, data=payload, timeout=5)
         _logger.debug(f"response from post request to {url} is {response.text}")
 
         # Raises a HTTPError if the status is 4xx, 5xxx
@@ -130,7 +134,7 @@ def post_session_delete_request(session: model.LightSession) -> str:
     }
 
     url = "http://tl3.streambox.com/light/sreq.php"
-    response = curSession.post(url, data=payload, timeout=5)
+    response = module_session.post(url, data=payload, timeout=5)
     _logger.debug(f"response from post request to {url} is {response.text}")
 
     return response.text
@@ -150,6 +154,8 @@ def generate_session_from_text(text: str, port: int) -> model.LightSession:
 def main(args):
     session_count = args.session_count
     session_lifetime_hours = args.session_lifetime_hours
+
+    check_host_is_running(endpoint=status_url)
 
     creds = get_credentials_from_env()
     generate_request_session(credentials=creds)
