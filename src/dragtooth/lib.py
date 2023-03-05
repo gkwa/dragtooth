@@ -74,7 +74,7 @@ def check_host_is_running(endpoint: str) -> None:
         _logger.debug(f"Great!  I'm able to reach {endpoint}")
 
 
-def generate_request_session(credentials: model.Credentials) -> None:
+def populate_login_session(credentials: model.Credentials) -> None:
     payload = {"login": credentials.login, "password": credentials.password}
 
     _logger.debug(f"submitting post request to {status_url} with {payload=}")
@@ -156,9 +156,9 @@ def main(args):
     session_lifetime_hours = args.session_lifetime_hours
 
     check_host_is_running(endpoint=status_url)
-
     creds = get_credentials_from_env()
-    generate_request_session(credentials=creds)
+    populate_login_session(credentials=creds)
+
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
     starting_port = 2000
     msg = (
