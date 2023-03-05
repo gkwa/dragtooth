@@ -1,10 +1,14 @@
+import datetime
 import logging
 import os
 import re
+import sys
 
 import bs4
 import requests
 import requests.exceptions
+
+from . import model
 
 _logger = logging.getLogger(__name__)
 
@@ -19,72 +23,118 @@ CONNECT_TIMEOUT_SEC = 2
 curSession = requests.Session()
 
 
-def startup():
-    # all cookies received will be stored in the session object
-
+def get_credentials_from_env() -> model.Credentials:
     login = os.getenv("WEBUI_LOGIN", None)
     password = os.getenv("WEBUI_PASSWORD", None)
 
-    if not login:
-        ValueError("WEBUI_LOGIN")
-    if not password:
-        ValueError("WEBUI_PASSWORD")
+    msg_login = (
+        "WEBUI_LOGIN is incorrect, try: export "
+        "WEBUI_LOGIN=username WEBUI_PASSWORD=password"
+    )
 
-    payload = {"login": login, "password": password}
+    msg_password = (
+        "WEBUI_PASSWORD is incorrect, try: export "
+        "WEBUI_LOGIN=username WEBUI_PASSWORD=password"
+    )
+
+    if not login:
+        _logger.critical(msg_login)
+        sys.exit(-1)
+
+    if not password:
+        _logger.critical(msg_password)
+        sys.exit(-1)
+
+    return model.Credentials(login, password)
+
+
+def generate_request_session(credentials: model.Credentials) -> None:
+    # all cookies received will be stored in the session object
+
+    payload = {"login": credentials.login, "password": credentials.password}
     url = "http://tl3.streambox.com/light/light_status.php"
 
     try:
-        r = requests.get(url, timeout=CONNECT_TIMEOUT_SEC)
         _logger.debug(f"feching {url}")
+        r = requests.get(url, timeout=CONNECT_TIMEOUT_SEC)
         r.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xxx
+
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
         _logger.critical(f"can't reach {url}")
-        raise
+        sys.exit(-1)
 
     except requests.exceptions.HTTPError:
-        print("4xx, 5xx")
+        _logger.critical("4xx, 5xx")
+        sys.exit(-1)
+
     else:
-        print("All good!")  # Proceed to do stuff with `r`
+        _logger.debug(f"Great!  I'm able to reach {url}")
 
+    _logger.debug(f"submitting post request to {url} with {payload=}")
     curSession.post(url, data=payload, timeout=CONNECT_TIMEOUT_SEC)
-    # internally return your expected cookies, can use for following auth
-
-    # internally use previously generated cookies, can access the resources
 
 
-def doit2(text: str):
-    for line in text.splitlines():
-        # print(f"[{line}]")
-        mo = pat.search(line)
-        if mo:
-            dec = mo.group("dec")
-            enc = mo.group("enc")
-            dec = dec.strip()
-            enc = enc.strip()
-            return (enc, dec)
-    return (None, None)
+def html_to_text(html: str):
+    soup = bs4.BeautifulSoup(html, "html.parser")
+    text = soup.get_text()
+    _logger.debug(f"parse_it: parsed as {text}")
+
+    return text
 
 
-def doit(port: int):
+def post_session_create_request(port: int, lifetime: datetime.timedelta) -> str:
     payload = {
         "port1": port,
         "port2": port,
-        "lifetime": "1",
+        "lifetime": lifetime.total_seconds() / 3600,
         "request": "Request",
     }
 
     url = "http://tl3.streambox.com/light/sreq.php"
     response = curSession.post(url, data=payload, timeout=5)
-    soup = bs4.BeautifulSoup(response.text, "html.parser")
-    text = soup.get_text()
-    return text
+    _logger.debug(f"response from post request to {url} is {response.text}")
+
+    return response.text
 
 
-def main():
-    startup()
+def post_session_delete_request(session: model.SessionPair) -> str:
+    payload = {
+        "action": 3,
+        "idd1": session.encoder,
+        "idd2": session.decoder,
+    }
+
+    url = "http://tl3.streambox.com/light/sreq.php"
+    response = curSession.post(url, data=payload, timeout=5)
+    _logger.debug(f"response from post request to {url} is {response.text}")
+
+    return response.text
+
+
+def generate_session_from_text(text: str, port: int) -> model.SessionPair:
+    text = text.strip()
+    for line in text.splitlines():
+        _logger.debug(line)
+        mo = pat.search(line)
+        if mo:
+            dec = mo.group("dec").strip()
+            enc = mo.group("enc").strip()
+            return model.SessionPair(encoder=enc, decoder=dec, port=port)
+
+    return model.SessionPair(encoder="", deocder="", port=port)
+
+
+def main(args):
+    creds = get_credentials_from_env()
+    generate_request_session(credentials=creds)
+    session_count = args.session_count
+    session_lifetime = datetime.timedelta(hours=args.session_lifetime_hours)
     port = 2000
-    for i in range(30):
-        port = port + i
-        stuff = doit(port)
-        enc, dec = doit2(stuff)
-        print(f"{port=}, {dec=}, {enc=}")
+    _logger.info(f"request to create {session_count} sessions, starting at port {port}")
+
+    for offset in range(session_count):
+        port = port + offset
+        html = post_session_create_request(port=port, lifetime=session_lifetime)
+        text = html_to_text(html)
+        session = generate_session_from_text(text, port=port)
+        _logger.info(f"session pair generated or re-fetched {session=}")

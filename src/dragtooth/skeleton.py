@@ -57,7 +57,9 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="")
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--version",
         action="version",
@@ -79,6 +81,25 @@ def parse_args(args):
         action="store_const",
         const=logging.DEBUG,
     )
+    parser.add_argument(
+        "-c",
+        "--session-count",
+        type=int,
+        default=5,
+        required=False,
+        metavar="INT",
+        help="how many session do you want to create or fetch?",
+    )
+    parser.add_argument(
+        "-l",
+        "--session-lifetime-hours",
+        type=int,
+        default=1,
+        required=False,
+        metavar="INT",
+        help="session lifetime in hours",
+    )
+
     return parser.parse_args(args)
 
 
@@ -107,7 +128,7 @@ def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
     _logger.debug("Starting crazy calculations...")
-    lib.main()
+    lib.main(args)
     _logger.info("Script ends here")
 
 
