@@ -34,6 +34,7 @@ __license__ = "MIT"
 
 _logger = logging.getLogger(__name__)
 
+package = __name__.split(".")[0]
 
 # ---- Python API ----
 # The functions defined in this section can be imported by users in their
@@ -109,9 +110,14 @@ def setup_logging(loglevel):
     Args:
       loglevel (int): minimum loglevel for emitting messages
     """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+    logformat = "{%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
     logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
+        level=logging.DEBUG,
+        format=logformat,
+        handlers=[
+            logging.FileHandler(f"{package}.log"),
+            logging.StreamHandler(sys.stdout),
+        ],
     )
 
 

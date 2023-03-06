@@ -1,11 +1,15 @@
 import datetime
 import logging
 import os
+import pprint
+import random
 import re
 import sys
 import time
+import typing
 
 import bs4
+import pandas
 import requests
 import requests.exceptions
 
@@ -28,7 +32,7 @@ status_url = "http://tl3.streambox.com/light/light_status.php"
 
 
 def avoid_sls_crash():
-    time.sleep(1)
+    time.sleep(2)
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -94,13 +98,48 @@ def populate_login_session(credentials: model.Credentials) -> None:
     _logger.debug(msg)
 
 
-def parse_sessions_from_status_endpoint() -> None:
+def get_session_port_map_dataframe(
+    df_list: typing.List[pandas.DataFrame],
+) -> pandas.DataFrame:
+    for df in df_list:
+        if "enc" in df.columns and "dec" in df.columns:
+            return df
+
+    msg = "its unusual to not be able to find this port mapping"
+    _logger.critical(msg)
+
+    return pandas.DataFrame()
+
+
+def dataframe_to_dict_list(df: pandas.DataFrame) -> typing.List[typing.Dict]:
+    return df.to_dict("index")
+
+
+def url_to_dataframe_list(url: str) -> typing.List[pandas.DataFrame]:
     response = module_session.get(status_url)
-
-    # expect html table of encoder session ids and decoder session ids
     _logger.debug(response.text)
+    df_list = html_to_dataframes(response.text)
+    return df_list
 
-    return response.text
+
+def html_to_dataframes(html: str) -> typing.List[pandas.DataFrame]:
+    _logger.debug(f"response from fetching {status_url}:")
+    _logger.debug(html)
+
+    try:
+        df_list = pandas.read_html(html)
+    except ValueError:
+        _logger.warning("pandas.read_html caused exception")
+
+    msg = f"There are {len(df_list):,} data frames in page {status_url}"
+    _logger.debug(msg)
+
+    for i, df in enumerate(df_list, 1):
+        msg = f"data frame number {i}:"
+        _logger.debug(msg)
+        _logger.debug(df.head())
+
+    return df_list
 
 
 def html_to_text(html: str):
@@ -177,29 +216,78 @@ def check_sls_offline():
         raise ValueError(msg)
 
 
+def dataframe_list_to_list_of_lists_of_dicts(url: str) -> typing.List:
+    df_list = url_to_dataframe_list(url)
+
+    if df_list is None:
+        msg = "data frame list is empty"
+        _logger.critical(msg)
+        return []
+
+    df_list_as_list_of_list_of_dicts = []
+    for df in df_list:
+        _logger.debug("dataframe to dict list")
+        dict_list = dataframe_to_dict_list(df)
+        pf = pprint.pformat(dict_list)
+        pf = f"\n{pf}"
+        _logger.debug(pf)
+        df_list_as_list_of_list_of_dicts.append(dict_list)
+
+    return df_list_as_list_of_list_of_dicts
+
+
+def show_list_of_dataframes_as_list_of_dicts():
+    mylist = dataframe_list_to_list_of_lists_of_dicts(status_url)
+    pf = pprint.pformat(mylist)
+    pf = f"\n{pf}"
+    _logger.debug("dataframe_list_to_list_of_lists_of_dicts")
+    _logger.debug(pf)
+
+    return mylist
+
+
+def is_dataframe_empty(df: pandas.DataFrame):
+    return df.empty
+
+
+def is_port_used_already(port: int) -> bool:
+    mylist = url_to_dataframe_list(status_url)
+    df = get_session_port_map_dataframe(mylist)
+
+    if is_dataframe_empty(df):
+        _logger.warning("dataframe is empty")
+
+    if port in df.values:
+        return True
+    return False
+
+
 def main(args):
     session_count = args.session_count
     session_lifetime_hours = args.session_lifetime_hours
 
     check_host_is_running(endpoint=status_url)
+
     avoid_sls_crash()
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
     avoid_sls_crash()
-    check_sls_offline()
 
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
 
-    starting_port = 2000
+    starting_port = random.randint(1500, pow(2, 16))
+    _logger.debug(f"{starting_port=}")
+
+    while is_port_used_already(starting_port):
+        starting_port = random.randint(1500, pow(2, 16))
+        _logger.debug(f"{starting_port=}")
+
     msg = (
         f"request to create {session_count} "
         f"sessions, starting at port {starting_port}"
     )
     _logger.info(msg)
-
-    status_page = parse_sessions_from_status_endpoint()
-    _logger.debug(f"{status_page=}")
 
     avoid_sls_crash()
     check_sls_offline()
