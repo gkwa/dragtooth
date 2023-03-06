@@ -168,9 +168,8 @@ def check_sls_offline():
     text = response.text
     mo = sls_offline_pat.search(text)
     if mo:
-        raise ValueError(
-            "sls process isn't running according" f" to parsing {status_url}"
-        )
+        msg = "sls process isn't running according to parsing {status_url}"
+        raise ValueError(msg)
 
 
 def main(args):
