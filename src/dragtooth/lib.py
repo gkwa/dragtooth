@@ -29,6 +29,7 @@ CONNECT_TIMEOUT_SEC = 2
 # use requests's session auto manage cookies
 module_session = requests.Session()
 status_url = "http://tl3.streambox.com/light/light_status.php"
+request_url = "http://tl3.streambox.com/light/sreq.php"
 
 
 def avoid_sls_crash():
@@ -154,7 +155,6 @@ def html_to_text(html: str):
 
 
 def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
-    url = "http://tl3.streambox.com/light/sreq.php"
     payload = {
         "port1": port,
         "port2": port,
@@ -164,14 +164,14 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
 
     try:
         avoid_sls_crash()
-        response = module_session.post(url, data=payload, timeout=5)
-        _logger.debug(f"response from post request to {url} is {response.text}")
+        response = module_session.post(request_url, data=payload, timeout=5)
+        _logger.debug(f"response from post request to {request_url} is {response.text}")
 
         # Raises a HTTPError if the status is 4xx, 5xxx
         response.raise_for_status()
 
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-        _logger.critical(f"can't reach {url}")
+        _logger.critical(f"can't reach {request_url}")
         sys.exit(-1)
 
     except requests.exceptions.HTTPError:
@@ -179,7 +179,7 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
         sys.exit(-1)
 
     else:
-        _logger.debug(f"Great!  I'm able to reach {url}")
+        _logger.debug(f"Great!  I'm able to reach {request_url}")
 
     return response.text
 
@@ -191,10 +191,9 @@ def post_session_delete_request(session: model.LightSession) -> str:
         "idd2": session.decoder,
     }
 
-    url = "http://tl3.streambox.com/light/sreq.php"
     avoid_sls_crash()
-    response = module_session.post(url, data=payload, timeout=5)
-    _logger.debug(f"response from post request to {url} is {response.text}")
+    response = module_session.post(request_url, data=payload, timeout=5)
+    _logger.debug(f"response from post request to {request_url} is {response.text}")
 
     return response.text
 
