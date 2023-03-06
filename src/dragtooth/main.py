@@ -115,7 +115,7 @@ def setup_logging(loglevel):
         level=logging.DEBUG,
         format=logformat,
         handlers=[
-            #            logging.FileHandler(f"{package}.log"),
+            # logging.FileHandler(f"{package}.log"),
             logging.StreamHandler(sys.stdout),
         ],
     )
