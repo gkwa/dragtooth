@@ -66,11 +66,11 @@ def check_host_is_running(endpoint: str) -> None:
 
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
         _logger.critical(f"can't reach {endpoint}")
-        raise
+        sys.exit(-1)
 
     except requests.exceptions.HTTPError:
         _logger.critical("4xx, 5xx")
-        raise
+        sys.exit(-1)
 
     else:
         _logger.debug(f"Great!  I'm able to reach {endpoint}")
