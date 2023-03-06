@@ -21,11 +21,14 @@ session_pair_pat = re.compile(
 sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 
 CONNECT_TIMEOUT_SEC = 2
-TIME_SLEEP_SEC = 1
 
 # use requests's session auto manage cookies
 module_session = requests.Session()
 status_url = "http://tl3.streambox.com/light/light_status.php"
+
+
+def avoid_sls_crash():
+    time.sleep(1)
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -179,11 +182,11 @@ def main(args):
     session_lifetime_hours = args.session_lifetime_hours
 
     check_host_is_running(endpoint=status_url)
-    time.sleep(TIME_SLEEP_SEC)
+    avoid_sls_crash()
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
-    time.sleep(TIME_SLEEP_SEC)
+    avoid_sls_crash()
     check_sls_offline()
 
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
@@ -198,7 +201,7 @@ def main(args):
     status_page = parse_sessions_from_status_endpoint()
     _logger.debug(f"{status_page=}")
 
-    time.sleep(TIME_SLEEP_SEC)
+    avoid_sls_crash()
     check_sls_offline()
 
     for offset in range(session_count):
@@ -212,4 +215,4 @@ def main(args):
             f"{port=} {session=}, {session_count-offset-1:,} remaining"
         )
         _logger.info(msg)
-        time.sleep(TIME_SLEEP_SEC)
+        avoid_sls_crash()
