@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import sys
+import time
 
 import bs4
 import requests
@@ -20,6 +21,7 @@ session_pair_pat = re.compile(
 sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 
 CONNECT_TIMEOUT_SEC = 2
+TIME_SLEEP_SEC = 1
 
 # use requests's session auto manage cookies
 module_session = requests.Session()
@@ -166,9 +168,9 @@ def check_sls_offline():
     response = module_session.get(status_url)
     _logger.debug(response.text)
     text = response.text
+    msg = f"sls process isn't running according to parsing {status_url}"
     mo = sls_offline_pat.search(text)
     if mo:
-        msg = "sls process isn't running according to parsing {status_url}"
         raise ValueError(msg)
 
 
@@ -177,9 +179,11 @@ def main(args):
     session_lifetime_hours = args.session_lifetime_hours
 
     check_host_is_running(endpoint=status_url)
+    time.sleep(TIME_SLEEP_SEC)
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
+    time.sleep(TIME_SLEEP_SEC)
     check_sls_offline()
 
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
@@ -194,6 +198,7 @@ def main(args):
     status_page = parse_sessions_from_status_endpoint()
     _logger.debug(f"{status_page=}")
 
+    time.sleep(TIME_SLEEP_SEC)
     check_sls_offline()
 
     for offset in range(session_count):
@@ -207,3 +212,4 @@ def main(args):
             f"{port=} {session=}, {session_count-offset-1:,} remaining"
         )
         _logger.info(msg)
+        time.sleep(TIME_SLEEP_SEC)
