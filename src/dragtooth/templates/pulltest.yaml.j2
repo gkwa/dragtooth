@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pulltest-{{ data.pair }}-deployment
+  namespace: pulltest
+  labels:
+    app: pulltest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pulltest
+  template:
+    metadata:
+      labels:
+        app: pulltest
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: pulltest
+        image: 193048895737.dkr.ecr.us-west-1.amazonaws.com/taylorm/termite_recharge/pulltest@sha256:ef924fba6a6176c32864dbf56fa01f6ee0ae2ba0aca6fb0c6bdab9715da770b3
+        imagePullPolicy: Always
+        command:
+        - /pulltest5.sh
+        env:
+        - name: IP
+          value: {{ data.ip }}
+        - name: LOGIN
+          value: defaultsession
+        - name: PASSWORD
+          value: defaultsession
+        - name: PORT1
+          value: "1772"
+        - name: PORT2
+          value: "{{ data.pull_port }}"
+        - name: REPORTER
+          value: {{ data.reporter }}
+        - name: NET1
+          value: {{ data.dec }} # {{ data.pair }}

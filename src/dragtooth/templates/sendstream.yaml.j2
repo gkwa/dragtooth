@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sendstream-{{ data.pair }}-deployment
+  namespace: pulltest
+  labels:
+    app: sendstream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sendstream
+  template:
+    metadata:
+      labels:
+        app: sendstream
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: sendstream
+        image: 193048895737.dkr.ecr.us-west-1.amazonaws.com/taylorm/termite_recharge/sendstream@sha256:b2c0e85c09e4e9c68603c1e68e71727177936d3aa57a9268e0b3a2e69228b7a5
+        imagePullPolicy: Always
+        command:
+        - /stream.sh
+        env:
+        - name: IP
+          value: {{ data.ip }}
+        - name: PORT
+          value: "1772"
+        - name: NETWORK1
+          value: {{ data.network1 }} # {{ data.pair }}
+        - name: FILE_PATH
+          value: /video/vaqua-6M-DYNO.actl3
+        - name: DRM
+          value: {{ data.drm }}
+        - name: REPORTER
+          value: {{ data.reporter }}
+        - name: SLUG
+          value: reporter-{{ data.pair }}-QC-pulltest

@@ -10,10 +10,11 @@ import typing
 
 import bs4
 import pandas
+import pytz
 import requests
 import requests.exceptions
 
-from . import model
+from . import common, k8s, model
 
 _logger = logging.getLogger(__name__)
 
@@ -26,14 +27,18 @@ sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 
 CONNECT_TIMEOUT_SEC = 2
 
+base_url = "http://tl3.streambox.com/"
+status_url = f"{base_url}/light/light_status.php"
+request_url = f"{base_url}/light/sreq.php"
+
 # use requests's session auto manage cookies
 module_session = requests.Session()
-status_url = "http://tl3.streambox.com/light/light_status.php"
-request_url = "http://tl3.streambox.com/light/sreq.php"
+
+host_timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
 
 def avoid_sls_crash():
-    time.sleep(1 / 10)
+    time.sleep(common.delay_to_prevent_crash_seconds)
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -198,15 +203,33 @@ def post_session_delete_request(session: model.LightSession) -> str:
     return response.text
 
 
-def generate_session_from_text(text: str, port: int) -> model.LightSession:
+def generate_session_from_text(
+    text: str, port: int, expires_at: datetime.timedelta
+) -> model.LightSession:
+    def debug(session):
+        msg = (
+            f"session {session} will expire at "
+            f"{session.expires_at.astimezone(host_timezone)} utc: {session.expires_at}"
+        )
+        _logger.debug(msg)
+
     for line in text.splitlines():
         mo = session_pair_pat.search(line)
         if mo:
             dec = mo.group("dec").strip()
             enc = mo.group("enc").strip()
-            return model.LightSession(encoder=enc, decoder=dec, port=port)
+            session = model.LightSession(
+                encoder=enc, decoder=dec, port=port, expires_at=expires_at
+            )
+            debug(session)
+            return session
 
-    return model.LightSession(encoder="", decoder="", port=port)
+    session = model.LightSession(
+        encoder="", decoder="", port=port, expires_at=expires_at
+    )
+    debug(session)
+
+    return session
 
 
 def check_sls_offline():
@@ -285,6 +308,7 @@ def get_available_port() -> int:
 def main(args):
     session_count = args.session_count
     session_lifetime_hours = args.session_lifetime_hours
+    common.delay_to_prevent_crash_seconds = args.delay_to_prevent_crash
 
     check_host_is_running(endpoint=status_url)
 
@@ -296,12 +320,19 @@ def main(args):
     check_sls_offline()
 
     counter = session_count
+    sessions = []
     while counter:
         port = get_available_port()
         _logger.debug(f"{port=}")
         html = post_sessioncreate_request(port=port, lifetime=session_lifetime)
         text = html_to_text(html)
-        session = generate_session_from_text(text, port=port)
+        expires_at = (
+            datetime.datetime.now(pytz.utc)
+            + session_lifetime
+            - datetime.timedelta(seconds=60)
+        )
+        session = generate_session_from_text(text, port=port, expires_at=expires_at)
+        sessions.append(session)
 
         counter -= 1
         msg = (
@@ -309,3 +340,6 @@ def main(args):
             f"{port=} {session=}, {counter:,} remaining"
         )
         _logger.info(msg)
+
+    for session in sessions:
+        k8s.generate_k8s(session)

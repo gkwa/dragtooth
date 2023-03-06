@@ -36,6 +36,7 @@ _logger = logging.getLogger(__name__)
 
 package = __name__.split(".")[0]
 
+
 # ---- Python API ----
 # The functions defined in this section can be imported by users in their
 # Python scripts/interactive interpreter, e.g. via
@@ -83,6 +84,15 @@ def parse_args(args):
         const=logging.DEBUG,
     )
     parser.add_argument(
+        "-d",
+        "--delay-to-prevent-crash",
+        type=float,
+        default=0.5,
+        required=False,
+        metavar="FLOAT",
+        help="delay fetches to prevent sls crash",
+    )
+    parser.add_argument(
         "-c",
         "--session-count",
         type=int,
@@ -94,10 +104,10 @@ def parse_args(args):
     parser.add_argument(
         "-l",
         "--session-lifetime-hours",
-        type=int,
-        default=1,
+        type=float,
+        default=0.5,
         required=False,
-        metavar="INT",
+        metavar="FLOAT",
         help="session lifetime in hours",
     )
 
@@ -112,7 +122,7 @@ def setup_logging(loglevel):
     """
     logformat = "{%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
     logging.basicConfig(
-        level=logging.INFO,
+        level=loglevel,
         format=logformat,
         handlers=[
             # logging.FileHandler(f"{package}.log"),

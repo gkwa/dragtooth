@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 
 
 @dataclasses.dataclass
@@ -12,6 +13,7 @@ class LightSession:
     encoder: str
     decoder: str
     port: int
+    expires_at: datetime.datetime
 
     def __post_init__(self):
         if not self.encoder:
