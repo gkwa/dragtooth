@@ -32,7 +32,7 @@ status_url = "http://tl3.streambox.com/light/light_status.php"
 
 
 def avoid_sls_crash():
-    time.sleep(2)
+    time.sleep(1 / 10)
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -89,6 +89,7 @@ def populate_login_session(credentials: model.Credentials) -> None:
     payload = {"login": credentials.login, "password": credentials.password}
 
     _logger.debug(f"submitting post request to {status_url} with {payload=}")
+    avoid_sls_crash()
     response = module_session.post(
         status_url, data=payload, timeout=CONNECT_TIMEOUT_SEC
     )
@@ -116,6 +117,7 @@ def dataframe_to_dict_list(df: pandas.DataFrame) -> typing.List[typing.Dict]:
 
 
 def url_to_dataframe_list(url: str) -> typing.List[pandas.DataFrame]:
+    avoid_sls_crash()
     response = module_session.get(status_url)
     _logger.debug(response.text)
     df_list = html_to_dataframes(response.text)
@@ -161,6 +163,7 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
     }
 
     try:
+        avoid_sls_crash()
         response = module_session.post(url, data=payload, timeout=5)
         _logger.debug(f"response from post request to {url} is {response.text}")
 
@@ -189,6 +192,7 @@ def post_session_delete_request(session: model.LightSession) -> str:
     }
 
     url = "http://tl3.streambox.com/light/sreq.php"
+    avoid_sls_crash()
     response = module_session.post(url, data=payload, timeout=5)
     _logger.debug(f"response from post request to {url} is {response.text}")
 
@@ -207,6 +211,7 @@ def generate_session_from_text(text: str, port: int) -> model.LightSession:
 
 
 def check_sls_offline():
+    avoid_sls_crash()
     response = module_session.get(status_url)
     _logger.debug(response.text)
     text = response.text
@@ -250,16 +255,32 @@ def is_dataframe_empty(df: pandas.DataFrame):
     return df.empty
 
 
-def is_port_used_already(port: int) -> bool:
+def port_in_use(port: int) -> bool:
     mylist = url_to_dataframe_list(status_url)
     df = get_session_port_map_dataframe(mylist)
 
     if is_dataframe_empty(df):
         _logger.warning("dataframe is empty")
 
+    msg = f"{port} already exists, try another one please"
     if port in df.values:
+        _logger.info(msg)
         return True
     return False
+
+
+def get_random_port() -> int:
+    return random.randint(1024, pow(2, 16))
+
+
+# WARNING THIS IS RACY since the port could be taken after checking
+# whether its available
+def get_available_port() -> int:
+    port = get_random_port()
+    while port_in_use(port):
+        port = get_random_port()
+
+    return port
 
 
 def main(args):
@@ -268,39 +289,24 @@ def main(args):
 
     check_host_is_running(endpoint=status_url)
 
-    avoid_sls_crash()
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
-    avoid_sls_crash()
-
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
 
-    starting_port = random.randint(1500, pow(2, 16))
-    _logger.debug(f"{starting_port=}")
-
-    while is_port_used_already(starting_port):
-        starting_port = random.randint(1500, pow(2, 16))
-        _logger.debug(f"{starting_port=}")
-
-    msg = (
-        f"request to create {session_count} "
-        f"sessions, starting at port {starting_port}"
-    )
-    _logger.info(msg)
-
-    avoid_sls_crash()
     check_sls_offline()
 
-    for offset in range(session_count):
-        port = starting_port + offset
-        _logger.debug(f"{port=}, {offset=}")
+    counter = session_count
+    while counter:
+        port = get_available_port()
+        _logger.debug(f"{port=}")
         html = post_sessioncreate_request(port=port, lifetime=session_lifetime)
         text = html_to_text(html)
         session = generate_session_from_text(text, port=port)
+
+        counter -= 1
         msg = (
             "session pair generated or re-fetched for "
-            f"{port=} {session=}, {session_count-offset-1:,} remaining"
+            f"{port=} {session=}, {counter:,} remaining"
         )
         _logger.info(msg)
-        avoid_sls_crash()

@@ -112,7 +112,7 @@ def setup_logging(loglevel):
     """
     logformat = "{%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format=logformat,
         handlers=[
             # logging.FileHandler(f"{package}.log"),
