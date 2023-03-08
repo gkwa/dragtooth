@@ -27,14 +27,14 @@ spec:
         - name: IP
           value: {{ data.ip }}
         - name: LOGIN
-          value: defaultsession
+          value: {{ data.pulltest_login }}
         - name: PASSWORD
-          value: defaultsession
+          value: {{ data.pulltest_password }}
         - name: PORT1
-          value: "1772"
+          value: "{{ data.pull_port }}"
         - name: PORT2
           value: "{{ data.pull_port }}"
         - name: REPORTER
           value: {{ data.reporter }}
         - name: NET1
-          value: {{ data.dec }} # {{ data.pair }}
+          value: {{ data.decoder }} # {{ data.pair }}
