@@ -22,19 +22,16 @@ spec:
         image: 193048895737.dkr.ecr.us-west-1.amazonaws.com/taylorm/termite_recharge/pulltest@sha256:ef924fba6a6176c32864dbf56fa01f6ee0ae2ba0aca6fb0c6bdab9715da770b3
         imagePullPolicy: Always
         command:
-        - /pulltest5.sh
-        env:
-        - name: IP
-          value: {{ data.ip }}
-        - name: LOGIN
-          value: {{ data.pulltest_login }}
-        - name: PASSWORD
-          value: {{ data.pulltest_password }}
-        - name: PORT1
-          value: "{{ data.pull_port }}"
-        - name: PORT2
-          value: "{{ data.pull_port }}"
-        - name: REPORTER
-          value: {{ data.reporter }}
-        - name: NET1
-          value: {{ data.decoder }} # {{ data.pair }}
+         - /bin/bash
+         - "-c"
+         - |
+           /bin/bash <<'EOF'
+           /usr/local/bin/pulltest \
+               /p {{ data.pull_port }} \
+               /server {{ data.ip }} {{ data.pull_port }} \
+               /rep '{{ data.reporter }}' \
+               /s_login '{{ data.pulltest_login }}' \
+               /s_pass '{{ data.pulltest_password }}' \
+               /net1 '{{ data.decoder }}' \
+               /pulltest 500
+           EOF
