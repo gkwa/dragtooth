@@ -14,7 +14,7 @@ import pytz
 import requests
 import requests.exceptions
 
-from . import common, k8s, model
+from . import common, k8s, model, scripts
 
 _logger = logging.getLogger(__name__)
 
@@ -351,3 +351,4 @@ def main(args):
 
     for session in sessions:
         k8s.generate_k8s(session)
+        scripts.generate_scripts(session)
