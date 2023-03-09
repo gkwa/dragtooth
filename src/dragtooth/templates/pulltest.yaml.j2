@@ -28,11 +28,8 @@ spec:
            /bin/bash <<'EOF'
            # encoder: {{ data.network1 }}, decoder: {{ data.decoder }}
            /usr/local/bin/pulltest \
+               /recv \
+               /session '{{ data.decoder }}' \
                /p {{ data.pull_port }} \
-               /server {{ data.ip }} {{ data.pull_port }} \
-               /rep '{{ data.reporter }}' \
-               /s_login '{{ data.pulltest_login }}' \
-               /s_pass '{{ data.pulltest_password }}' \
-               /net1 '{{ data.decoder }}' \
                /pulltest 500
            EOF
