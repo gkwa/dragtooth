@@ -26,6 +26,7 @@ spec:
          - "-c"
          - |
            /bin/bash <<'EOF'
+           # encoder: {{ data.network1 }}, decoder: {{ data.decoder }}
            /usr/local/bin/pulltest \
                /p {{ data.pull_port }} \
                /server {{ data.ip }} {{ data.pull_port }} \

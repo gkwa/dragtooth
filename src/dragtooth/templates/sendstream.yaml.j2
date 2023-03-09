@@ -29,6 +29,7 @@ spec:
          - "-c"
          - |
            /bin/bash <<'EOF'
+           # encoder: {{ data.network1 }}, decoder: {{ data.decoder }}
            /usr/local/bin/sendstream \
                -cleanup -loop \
                -reporter '{{ data.reporter }}' \
