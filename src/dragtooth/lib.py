@@ -285,7 +285,22 @@ def port_in_use(port: int) -> bool:
 
 
 def get_random_port() -> int:
-    return random.randint(1770, 1785)
+    ports = [
+        1770,
+        1771,
+        1772,
+        1773,
+        1774,
+        1775,
+        1776,
+        1777,
+        1778,
+        1779,
+        1780,
+        1781,
+        1785,
+    ]
+    return random.choice(ports)
 
 
 # WARNING THIS IS RACY since the port could be taken after checking
