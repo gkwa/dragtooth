@@ -42,31 +42,24 @@ def avoid_sls_crash():
 
 
 def get_credentials_from_env() -> model.Credentials:
-    def validate_login(login):
-        msg_login = (
-            "WEBUI_LOGIN is incorrect, try: export "
-            "WEBUI_LOGIN=username WEBUI_PASSWORD=password"
-        )
+    def validate_credentials():
+        msgs = []
+        for v1 in ["WEBUI", "PULLTEST"]:
+            for v2 in ["LOGIN", "PASSWORD"]:
+                v3 = f"{v1}_{v2}"
+                msg = f"{v3} is not set, try export {v3}=xyz"
+                if not os.getenv(v3, None):
+                    msgs.append(msg)
+        for msg in msgs:
+            _logger.critical(msg)
 
-        if not login:
-            _logger.critical(msg_login)
+        if msgs:
             sys.exit(-1)
 
-    def validate_password(login):
-        msg_password = (
-            "WEBUI_PASSWORD is incorrect, try: export "
-            "WEBUI_LOGIN=username WEBUI_PASSWORD=password"
-        )
-
-        if not password:
-            _logger.critical(msg_password)
-            sys.exit(-1)
+    validate_credentials()
 
     login = os.getenv("WEBUI_LOGIN", None)
-    validate_login(login)
-
     password = os.getenv("WEBUI_PASSWORD", None)
-    validate_login(password)
 
     return model.Credentials(login, password)
 
