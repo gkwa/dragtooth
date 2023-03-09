@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# encoder: {{ data.network1 }}, decoder: {{ data.decoder }}
+# encoder: {{ data.network1 }}, decoder: {{ data.decoder }}, port: {{ data.pull_port }}
 
 /usr/local/bin/sendstream \
-    -cleanup -loop \
+    -cleanup -loop -reporter '{{ data.reporter }}' \
     -port {{ data.pull_port }} \
     -ip {{ data.ip }} \
     -file /video/vaqua-6M-DYNO.actl3 \
     -drm '{{ data.network1 }}' \
-    -reporter '{{ data.reporter }}' \
-    -slug 'reporter-{{ data.pair }}-QC-pulltest'
+    -slug '{{ data.slug }}'

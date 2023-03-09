@@ -7,6 +7,8 @@ from . import common
 
 _logger = logging.getLogger(__name__)
 
+data_dir = common.data_dir / "scripts"
+
 
 @dataclasses.dataclass
 class ScriptContainer:
@@ -32,7 +34,14 @@ def generate_scripts(session):
 def generate_script(session, container):
     data = common.generate_data(session)
 
-    path = common.data_dir / container.script
+    x1 = str(data["pull_port"])
+    y1 = session.encoder.replace("$", "")
+    z1 = f"{x1}-{y1}"
+
+    _dir = data_dir / z1
+    path = _dir / container.script
     text = container.template.render(data=data)
     _logger.info(f"writing {path.resolve()}")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)

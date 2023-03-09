@@ -11,7 +11,7 @@ delay_to_prevent_crash_seconds = None
 
 _logger = logging.getLogger(__name__)
 
-data_dir = pathlib.Path("k8s")
+data_dir = pathlib.Path("data")
 _logger.info(f"data directory is {data_dir.resolve()}")
 data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -49,9 +49,11 @@ def generate_data(session):
         "drm": session.encoder,
         "network1": session.encoder,
         "NET1": session.decoder,
-        "reporter": "myself",
+        "reporter": f"reporter-{session.encoder}-{session.decoder}".lower().replace(
+            "$", ""
+        ),
+        "slug": f"slug-{session.encoder}-{session.decoder}".lower().replace("$", ""),
         "decoder": session.decoder,
-        "pair": "myself",
         "pull_port": session.port,
         "pulltest_login": pulltest_login,
         "pulltest_password": pulltest_password,

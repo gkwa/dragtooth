@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# encoder: {{ data.network1 }}, decoder: {{ data.decoder }}
+# encoder: {{ data.network1 }}, decoder: {{ data.decoder }}, port: {{ data.pull_port }}
 
 /usr/local/bin/pulltest \
-    /p {{ data.pull_port }} \
+    /p 1999 \
     /server {{ data.ip }} {{ data.pull_port }} \
     /rep '{{ data.reporter }}' \
-    /s_login '{{ data.pulltest_login }}' /s_pass '{{ data.pulltest_password }}' \
-    /session '{{ data.decoder }}' \
+    /s_login '{{ data.pulltest_login }}' \
+    /s_pass '{{ data.pulltest_password }}' \
+    /net1 '{{ data.decoder }}' \
     /pulltest 500
