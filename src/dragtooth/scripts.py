@@ -18,12 +18,10 @@ class ScriptContainer:
 
 scripts = [
     ScriptContainer(
-        script="sendstream.sh",
-        template=common.env.get_template("scripts/1/sendstream.sh.j2"),
+        script="sendstream.sh", template=common.env.get_template("sendstream.sh.j2")
     ),
     ScriptContainer(
-        script="pulltest.sh",
-        template=common.env.get_template("scripts/2/pulltest.sh.j2"),
+        script="pulltest.sh", template=common.env.get_template("pulltest.sh.j2")
     ),
 ]
 

@@ -27,11 +27,11 @@ class SendPullPair:
 
 send = ManifestContainer(
     manifest="sendstream.yaml",
-    template=common.env.get_template("ks8/1/sendstream.yaml.j2"),
+    template=common.env.get_template("sendstream.yaml.j2"),
 )
 
 pull = ManifestContainer(
-    manifest="pulltest.yaml", template=common.env.get_template("k8s/1/pulltest.yaml.j2")
+    manifest="pulltest.yaml", template=common.env.get_template("pulltest.yaml.j2")
 )
 
 pair = SendPullPair(send, pull)
@@ -41,12 +41,11 @@ send_pull_pairs.append(pair)
 
 send = ManifestContainer(
     manifest="sendstream2.yaml",
-    template=common.env.get_template("k8s/2/sendstream2.yaml.j2"),
+    template=common.env.get_template("sendstream2.yaml.j2"),
 )
 
 pull = ManifestContainer(
-    manifest="pulltest2.yaml",
-    template=common.env.get_template("k8s/2/pulltest2.yaml.j2"),
+    manifest="pulltest2.yaml", template=common.env.get_template("pulltest2.yaml.j2")
 )
 
 pair = SendPullPair(send, pull)
