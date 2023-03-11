@@ -98,6 +98,25 @@ def populate_login_session(credentials: model.Credentials) -> None:
     _logger.debug(msg)
 
 
+def remaining_unused_ports():
+    mylist = url_to_dataframe_list(status_url)
+    df = get_session_port_map_dataframe(mylist)
+    x = set([str(x) for x in df["ports"].tolist()])
+    y = set([str(x) for x in acceptable_ports])
+    diff = y - x
+    diff = sorted([int(x) for x in diff])
+    _logger.debug(
+        f"{y=}",
+    )
+    _logger.debug(
+        f"{x=}",
+    )
+    _logger.debug(
+        f"{diff=}",
+    )
+    return diff
+
+
 def get_session_port_map_dataframe(
     df_list: typing.List[pandas.DataFrame],
 ) -> pandas.DataFrame:
@@ -106,6 +125,24 @@ def get_session_port_map_dataframe(
             return df
 
     msg = "its unusual to not be able to find this port mapping"
+    _logger.critical(msg)
+
+    return pandas.DataFrame()
+
+
+def get_incoming_ports_dataframe(
+    df_list: typing.List[pandas.DataFrame],
+) -> pandas.DataFrame:
+    for df in df_list:
+        if (
+            "port" in df.columns
+            and "encoders" in df.columns
+            and "bitrate in" in df.columns
+            and "bitrate out" in df.columns
+        ):
+            return df
+
+    msg = "its unusual to not be able to find the Incoming Ports table"
     _logger.critical(msg)
 
     return pandas.DataFrame()
@@ -270,37 +307,50 @@ def is_dataframe_empty(df: pandas.DataFrame):
     return df.empty
 
 
+def display_dataframe(df: pandas.DataFrame):
+    # display all the  rows
+    pandas.set_option("display.max_rows", None)
+
+    # display all the  columns
+    pandas.set_option("display.max_columns", None)
+
+    # set width  - 100
+    pandas.set_option("display.width", 1000)
+
+    # set column header -  left
+    pandas.set_option("display.colheader_justify", "left")
+
+    # set precision - 5
+    pandas.set_option("display.precision", 5)
+
+    _logger.debug(df)
+
+
 def port_in_use(port: int) -> bool:
     mylist = url_to_dataframe_list(status_url)
     df = get_session_port_map_dataframe(mylist)
+    display_dataframe(df)
 
     if is_dataframe_empty(df):
         _logger.warning("dataframe is empty")
 
     msg = f"{port} already exists, try another one please"
-    if port in df.values:
+    if str(port) in df.ports.values:
         _logger.info(msg)
         return True
     return False
 
 
+def get_acceptable_port_range():
+    global acceptable_ports
+    mylist = url_to_dataframe_list(status_url)
+    df = get_incoming_ports_dataframe(mylist)
+    acceptable_ports = list(set(df.port.values))
+
+
 def get_random_port() -> int:
-    ports = [
-        1770,
-        1771,
-        1772,
-        1773,
-        1774,
-        1775,
-        1776,
-        1777,
-        1778,
-        1779,
-        1780,
-        1781,
-        1785,
-    ]
-    return random.choice(ports)
+    _logger.debug(f"{acceptable_ports=}")
+    return random.choice(acceptable_ports)
 
 
 # WARNING THIS IS RACY since the port could be taken after checking
@@ -326,6 +376,9 @@ def main(args):
     session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
 
     check_sls_offline()
+
+    get_acceptable_port_range()
+    remaining_unused_ports()
 
     counter = session_count
     sessions = []
