@@ -28,7 +28,7 @@ sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 CONNECT_TIMEOUT_SEC = 2
 
 base_url = "http://tl3.streambox.com/"
-status_url = f"{base_url}/light/light_status.php"
+status_url = f"{base_url}/light/light_status.php?"
 request_url = f"{base_url}/light/sreq.php"
 
 # use requests's session auto manage cookies
@@ -98,23 +98,71 @@ def populate_login_session(credentials: model.Credentials) -> None:
     _logger.debug(msg)
 
 
-def remaining_unused_ports():
+def ports_from_range(_range: str | int) -> set[int]:
+    """
+    1770 -> {1770}
+    "1770" -> {1770}
+    "1770-1771" -> {1770, 1771}
+    "1770-1770" -> {1770}
+    "Request public session from broker" -> {}
+    """
+
+    u = str(_range)
+    start = finish = u
+    ports_in_range = set()
+
+    if "-" in u:
+        start, finish = [int(i) for i in u.split("-")]
+
+    msg = (
+        "returning early in ports_from_range() because"
+        f" I can't cast '{start}' to int."
+        " Not being able to parse this value is an"
+        " expected condition since we're parsing a UI"
+    )
+
+    try:
+        start = int(str(start).strip())
+    except ValueError:
+        _logger.debug(msg)
+        return set()
+
+    finish = int(str(finish).strip())
+    ports = [start] if start == finish else list(range(start, finish + 1))
+
+    for port in ports:
+        ports_in_range.add(port)
+
+    return ports_in_range
+
+
+def get_remaining_unused_ports() -> list[int]:
     mylist = url_to_dataframe_list(status_url)
     df = get_session_port_map_dataframe(mylist)
+
     x = set([str(x) for x in df["ports"].tolist()])
-    y = set([str(x) for x in acceptable_ports])
-    diff = y - x
-    diff = sorted([int(x) for x in diff])
-    _logger.debug(
-        f"{y=}",
-    )
-    _logger.debug(
-        f"{x=}",
-    )
-    _logger.debug(
-        f"{diff=}",
-    )
-    return diff
+    # x is mishmash of UI elements and port ranges and ports,
+    # example: [1779, "1780-1782", 'Request public session from broker']
+    _logger.debug(f"parsed ports from webui: {x}")
+
+    ports_in_use = set()
+    for _range in x:
+        p = ports_from_range(_range)
+        ports_in_use = ports_in_use | p
+
+    _logger.debug(f"{sorted(ports_in_use)=}")
+
+    y = set([int(x) for x in sls_listening_ports])
+    _logger.debug(f"sls_listening_ports={sorted(y)}")
+
+    remaining = y - ports_in_use
+
+    msg = f"remaining ports availble for use {sorted(remaining)=}"
+    _logger.debug(msg)
+
+    remaining = sorted([int(x) for x in remaining])
+
+    return remaining
 
 
 def get_session_port_map_dataframe(
@@ -215,6 +263,8 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
 
     else:
         _logger.debug(f"Great!  I'm able to reach {request_url}")
+
+    module_session.get(status_url)  # refresh page so my new port appears on status page
 
     return response.text
 
@@ -341,26 +391,25 @@ def port_in_use(port: int) -> bool:
     return False
 
 
-def get_acceptable_port_range():
-    global acceptable_ports
+def set_global_sls_listening_ports():
+    global sls_listening_ports
     mylist = url_to_dataframe_list(status_url)
     df = get_incoming_ports_dataframe(mylist)
-    acceptable_ports = list(set(df.port.values))
+    sls_listening_ports = list(set(df.port.values))
 
 
 def get_random_port() -> int:
-    _logger.debug(f"{acceptable_ports=}")
-    return random.choice(acceptable_ports)
+    _logger.debug(f"{sls_listening_ports=}")
+    return random.choice(sls_listening_ports)
 
 
 # WARNING THIS IS RACY since the port could be taken after checking
 # whether its available
-def get_available_port() -> int:
-    port = get_random_port()
-    while port_in_use(port):
-        port = get_random_port()
-
-    return port
+def get_available_port() -> int | None:
+    remaining = get_remaining_unused_ports()
+    if not remaining:
+        return None
+    return remaining[0]
 
 
 def main(args):
@@ -377,14 +426,44 @@ def main(args):
 
     check_sls_offline()
 
-    get_acceptable_port_range()
-    remaining_unused_ports()
+    set_global_sls_listening_ports()
+
+    ports_available = get_remaining_unused_ports()
+
+    msg1 = (
+        f"you asked for {session_count:,} ports, but there are only"
+        f" {len(ports_available):,} remaining available {ports_available}."
+        " I will use the remaing ports"
+    )
+
+    if not ports_available:
+        msg1 = (
+            f"you asked for {session_count:,} port(s), but there are no"
+            f" ports remaining available."
+        )
+
+    if len(ports_available) < session_count:
+        _logger.warning(msg1)
+
+    msg2 = f"you asked for {session_count:,} ports, but there are no ports availble"
+
+    if get_available_port() is None:
+        _logger.warning(msg2)
+        _logger.warning("quitting prematurely")
+        sys.exit(-1)
+
+    get_remaining_unused_ports()
 
     counter = session_count
     sessions = []
     while counter:
         port = get_available_port()
         _logger.debug(f"{port=}")
+
+        if get_available_port() is None:
+            _logger.warning(msg2)
+            sys.exit(-1)
+
         html = post_sessioncreate_request(port=port, lifetime=session_lifetime)
         text = html_to_text(html)
         expires_at = (
