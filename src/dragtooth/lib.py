@@ -28,7 +28,7 @@ sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 CONNECT_TIMEOUT_SEC = 2
 
 base_url = "http://tl3.streambox.com/"
-status_url = f"{base_url}/light/light_status.php?"
+status_url = f"{base_url}/light/light_status.php"
 request_url = f"{base_url}/light/sreq.php"
 
 # use requests's session auto manage cookies
@@ -264,7 +264,10 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
     else:
         _logger.debug(f"Great!  I'm able to reach {request_url}")
 
-    module_session.get(status_url)  # refresh page so my new port appears on status page
+    # refresh page so my new port appears on status page
+    url = status_url.rstrip("?")
+    url = f"{status_url}?"
+    module_session.get(url)
 
     return response.text
 
