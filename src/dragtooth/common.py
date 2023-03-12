@@ -5,8 +5,8 @@ import pathlib
 import jinja2
 import pkg_resources
 
-global delay_to_prevent_crash_seconds
-delay_to_prevent_crash_seconds = None
+global delay_to_prevent_crash
+delay_to_prevent_crash = None
 
 
 _logger = logging.getLogger(__name__)
@@ -20,6 +20,16 @@ package = __name__.split(".")[0]
 templates_dir = pathlib.Path(pkg_resources.resource_filename(package, "templates"))
 loader = jinja2.FileSystemLoader(searchpath=templates_dir)
 env = jinja2.Environment(loader=loader, keep_trailing_newline=True)
+
+msg_base_url_invalid = (
+    "SLS_LIGHT_BASE_URL is required."
+    " Example: http://hostname.domainname.com/, "
+    "quitting prematurely."
+)
+
+base_url = os.getenv("SLS_LIGHT_BASE_URL", None)
+status_url = f"{base_url}/light/light_status.php"
+request_url = f"{base_url}/light/sreq.php"
 
 
 def generate_pulltest_login():

@@ -9,6 +9,7 @@ import time
 import typing
 
 import bs4
+import durations
 import pandas
 import pytz
 import requests
@@ -27,9 +28,8 @@ sls_offline_pat = re.compile(r"ERROR: SLS service is offline")
 
 CONNECT_TIMEOUT_SEC = 2
 
-base_url = "http://tl3.streambox.com/"
-status_url = f"{base_url}/light/light_status.php"
-request_url = f"{base_url}/light/sreq.php"
+if not common.base_url:
+    raise ValueError(common.msg_base_url_invalid)
 
 # use requests's session auto manage cookies
 module_session = requests.Session()
@@ -38,7 +38,7 @@ host_timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
 
 def avoid_sls_crash():
-    time.sleep(common.delay_to_prevent_crash_seconds)
+    time.sleep(common.delay_to_prevent_crash.total_seconds())
 
 
 def get_credentials_from_env() -> model.Credentials:
@@ -87,13 +87,16 @@ def check_host_is_running(endpoint: str) -> None:
 def populate_login_session(credentials: model.Credentials) -> None:
     payload = {"login": credentials.login, "password": credentials.password}
 
-    _logger.debug(f"submitting post request to {status_url} with {payload=}")
+    _logger.debug(f"submitting post request to {common.status_url} with {payload=}")
     avoid_sls_crash()
     response = module_session.post(
-        status_url, data=payload, timeout=CONNECT_TIMEOUT_SEC
+        common.status_url, data=payload, timeout=CONNECT_TIMEOUT_SEC
     )
 
-    msg = f"posting payload {payload} to " f"{status_url} returns response {response}"
+    msg = (
+        f"posting payload {payload} to "
+        f"{common.status_url} returns response {response}"
+    )
 
     _logger.debug(msg)
 
@@ -137,7 +140,7 @@ def ports_from_range(_range: str | int) -> set[int]:
 
 
 def get_remaining_unused_ports() -> list[int]:
-    mylist = url_to_dataframe_list(status_url)
+    mylist = url_to_dataframe_list(common.status_url)
     df = get_session_port_map_dataframe(mylist)
 
     x = set([str(x) for x in df["ports"].tolist()])
@@ -202,14 +205,14 @@ def dataframe_to_dict_list(df: pandas.DataFrame) -> typing.List[typing.Dict]:
 
 def url_to_dataframe_list(url: str) -> typing.List[pandas.DataFrame]:
     avoid_sls_crash()
-    response = module_session.get(status_url)
+    response = module_session.get(common.status_url)
     _logger.debug(response.text)
     df_list = html_to_dataframes(response.text)
     return df_list
 
 
 def html_to_dataframes(html: str) -> typing.List[pandas.DataFrame]:
-    _logger.debug(f"response from fetching {status_url}:")
+    _logger.debug(f"response from fetching {common.status_url}:")
     _logger.debug(html)
 
     try:
@@ -217,7 +220,7 @@ def html_to_dataframes(html: str) -> typing.List[pandas.DataFrame]:
     except ValueError:
         _logger.warning("pandas.read_html caused exception")
 
-    msg = f"There are {len(df_list):,} data frames in page {status_url}"
+    msg = f"There are {len(df_list):,} data frames in page {common.status_url}"
     _logger.debug(msg)
 
     for i, df in enumerate(df_list, 1):
@@ -247,14 +250,16 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
 
     try:
         avoid_sls_crash()
-        response = module_session.post(request_url, data=payload, timeout=5)
-        _logger.debug(f"response from post request to {request_url} is {response.text}")
+        response = module_session.post(common.request_url, data=payload, timeout=5)
+        _logger.debug(
+            f"response from post request to {common.request_url} is {response.text}"
+        )
 
         # Raises a HTTPError if the status is 4xx, 5xxx
         response.raise_for_status()
 
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-        _logger.critical(f"can't reach {request_url}")
+        _logger.critical(f"can't reach {common.request_url}")
         sys.exit(-1)
 
     except requests.exceptions.HTTPError:
@@ -262,11 +267,11 @@ def post_sessioncreate_request(port: int, lifetime: datetime.timedelta) -> str:
         sys.exit(-1)
 
     else:
-        _logger.debug(f"Great!  I'm able to reach {request_url}")
+        _logger.debug(f"Great!  I'm able to reach {common.request_url}")
 
     # refresh page so my new port appears on status page
-    url = status_url.rstrip("?")
-    url = f"{status_url}?"
+    url = common.status_url.rstrip("?")
+    url = f"{common.status_url}?"
     module_session.get(url)
 
     return response.text
@@ -280,8 +285,10 @@ def post_session_delete_request(session: model.LightSession) -> str:
     }
 
     avoid_sls_crash()
-    response = module_session.post(request_url, data=payload, timeout=5)
-    _logger.debug(f"response from post request to {request_url} is {response.text}")
+    response = module_session.post(common.request_url, data=payload, timeout=5)
+    _logger.debug(
+        f"response from post request to {common.request_url} is {response.text}"
+    )
 
     return response.text
 
@@ -317,10 +324,10 @@ def generate_session_from_text(
 
 def check_sls_offline():
     avoid_sls_crash()
-    response = module_session.get(status_url)
+    response = module_session.get(common.status_url)
     _logger.debug(response.text)
     text = response.text
-    msg = f"sls process isn't running according to parsing {status_url}"
+    msg = f"sls process isn't running according to parsing {common.status_url}"
     mo = sls_offline_pat.search(text)
     if mo:
         raise ValueError(msg)
@@ -347,7 +354,7 @@ def dataframe_list_to_list_of_lists_of_dicts(url: str) -> typing.List:
 
 
 def show_list_of_dataframes_as_list_of_dicts():
-    mylist = dataframe_list_to_list_of_lists_of_dicts(status_url)
+    mylist = dataframe_list_to_list_of_lists_of_dicts(common.status_url)
     pf = pprint.pformat(mylist)
     pf = f"\n{pf}"
     _logger.debug("dataframe_list_to_list_of_lists_of_dicts")
@@ -380,7 +387,7 @@ def display_dataframe(df: pandas.DataFrame):
 
 
 def port_in_use(port: int) -> bool:
-    mylist = url_to_dataframe_list(status_url)
+    mylist = url_to_dataframe_list(common.status_url)
     df = get_session_port_map_dataframe(mylist)
     display_dataframe(df)
 
@@ -396,7 +403,7 @@ def port_in_use(port: int) -> bool:
 
 def set_global_sls_listening_ports():
     global sls_listening_ports
-    mylist = url_to_dataframe_list(status_url)
+    mylist = url_to_dataframe_list(common.status_url)
     df = get_incoming_ports_dataframe(mylist)
     sls_listening_ports = list(set(df.port.values))
 
@@ -418,9 +425,13 @@ def get_available_port() -> int | None:
 def main(args):
     session_count = args.session_count
     session_lifetime_hours = args.session_lifetime_hours
-    common.delay_to_prevent_crash_seconds = args.delay_to_prevent_crash
 
-    check_host_is_running(endpoint=status_url)
+    d1 = args.prevent_crash_delay
+    duration = durations.Duration(d1)
+    delta = datetime.timedelta(seconds=duration.to_seconds())
+    common.delay_to_prevent_crash = delta
+
+    check_host_is_running(endpoint=common.status_url)
 
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
@@ -435,7 +446,8 @@ def main(args):
 
     msg1 = (
         f"you asked for {session_count:,} ports, but there are only"
-        f" {len(ports_available):,} remaining available {ports_available}."
+        f" {len(ports_available):,} remaining"
+        f" available: {', '.join([str(x) for x in ports_available])}."
         " I will use the remaing ports"
     )
 

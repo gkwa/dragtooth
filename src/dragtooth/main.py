@@ -85,12 +85,10 @@ def parse_args(args):
     )
     parser.add_argument(
         "-d",
-        "--delay-to-prevent-crash",
-        type=float,
-        default=0.0,
+        "--prevent-crash-delay",
+        default="0s",
         required=False,
-        metavar="FLOAT",
-        help="delay fetches to prevent sls crash",
+        help="delay fetches to prevent sls crash (eg, 2m, 60s, 1h)",
     )
     parser.add_argument(
         "-c",
