@@ -445,7 +445,7 @@ def main(args):
     if len(ports_available) < session_count:
         _logger.warning(msg1)
 
-    msg2 = f"you asked for {session_count:,} ports, but there are no ports availble"
+    msg2 = f"you asked for {session_count:,} ports, but" " there are no ports availble"
 
     if get_available_port() is None:
         _logger.warning(msg2)
