@@ -87,7 +87,7 @@ def parse_args(args):
         "-d",
         "--delay-to-prevent-crash",
         type=float,
-        default=0.5,
+        default=0.0,
         required=False,
         metavar="FLOAT",
         help="delay fetches to prevent sls crash",
