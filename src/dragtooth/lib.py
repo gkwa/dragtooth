@@ -461,7 +461,12 @@ def main(args):
         _logger.debug(f"{port=}")
 
         if get_available_port() is None:
-            _logger.warning(msg2)
+            msg = (
+                f"you asked for {session_count:,} ports but I"
+                f" could only create {len(sessions):,} ports"
+                " before I ran out of available ports"
+            )
+            _logger.warning(msg)
             sys.exit(-1)
 
         html = post_sessioncreate_request(port=port, lifetime=session_lifetime)
