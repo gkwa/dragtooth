@@ -15,7 +15,7 @@ import pytz
 import requests
 import requests.exceptions
 
-from . import common, k8s, model, scripts
+from . import common, geolocation, k8s, model, scripts
 
 _logger = logging.getLogger(__name__)
 
@@ -140,8 +140,8 @@ def ports_from_range(_range: str | int) -> set[int]:
 
 
 def get_remaining_unused_ports() -> list[int]:
-    mylist = url_to_dataframe_list(common.status_url)
-    df = get_session_port_map_dataframe(mylist)
+    df_list = url_to_dataframe_list(common.status_url)
+    df = get_session_port_map_dataframe(df_list)
 
     x = set([str(x) for x in df["ports"].tolist()])
     # x is mishmash of UI elements and port ranges and ports,
@@ -354,13 +354,13 @@ def dataframe_list_to_list_of_lists_of_dicts(url: str) -> typing.List:
 
 
 def show_list_of_dataframes_as_list_of_dicts():
-    mylist = dataframe_list_to_list_of_lists_of_dicts(common.status_url)
-    pf = pprint.pformat(mylist)
+    df_list = dataframe_list_to_list_of_lists_of_dicts(common.status_url)
+    pf = pprint.pformat(df_list)
     pf = f"\n{pf}"
     _logger.debug("dataframe_list_to_list_of_lists_of_dicts")
     _logger.debug(pf)
 
-    return mylist
+    return df_list
 
 
 def is_dataframe_empty(df: pandas.DataFrame):
@@ -387,8 +387,8 @@ def display_dataframe(df: pandas.DataFrame):
 
 
 def port_in_use(port: int) -> bool:
-    mylist = url_to_dataframe_list(common.status_url)
-    df = get_session_port_map_dataframe(mylist)
+    df_list = url_to_dataframe_list(common.status_url)
+    df = get_session_port_map_dataframe(df_list)
     display_dataframe(df)
 
     if is_dataframe_empty(df):
@@ -401,10 +401,44 @@ def port_in_use(port: int) -> bool:
     return False
 
 
+def get_data_usage_dataframe(
+    df_list: typing.List[pandas.DataFrame],
+) -> pandas.DataFrame | None:
+
+    headers = {
+        "ip",
+        "data",
+        "time",
+        "first active",
+        "last active",
+    }
+
+    for df in df_list:
+        if headers.issubset(df.columns):
+            return df
+
+    msg = (
+        "I searched through all tables"
+        " but couldn't find the table whose field names matched"
+        f" {headers}"
+    )
+    raise ValueError(msg)
+
+
+def get_ip_addresses(column: str = "ip") -> list[str]:
+    df_list = url_to_dataframe_list(common.status_url)
+    df = get_data_usage_dataframe(df_list)
+    _logger.debug(f"{column=}")
+    ips = df[column].values
+    _logger.debug(f"{ips=}")
+
+    return ips
+
+
 def set_global_sls_listening_ports():
     global sls_listening_ports
-    mylist = url_to_dataframe_list(common.status_url)
-    df = get_incoming_ports_dataframe(mylist)
+    df_list = url_to_dataframe_list(common.status_url)
+    df = get_incoming_ports_dataframe(df_list)
     sls_listening_ports = list(set(df.port.values))
 
 
@@ -468,6 +502,7 @@ def main(args):
         sys.exit(-1)
 
     get_remaining_unused_ports()
+    geolocation.ip_geolocation(get_ip_addresses())
 
     counter = session_count
     sessions = []

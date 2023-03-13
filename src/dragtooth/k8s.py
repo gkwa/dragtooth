@@ -1,6 +1,5 @@
 import dataclasses
 import logging
-import pathlib
 
 import jinja2
 
@@ -9,7 +8,7 @@ from . import common
 _logger = logging.getLogger(__name__)
 
 
-data_dir = common.data_dir / "k8s"
+data_dir = common.data_dir
 send_pull_pairs = []
 
 
@@ -53,6 +52,10 @@ pair = SendPullPair(send, pull)
 send_pull_pairs.append(pair)
 
 
+def delete_old_manifests():
+    _logger.debug(f"{data_dir=}")
+
+
 def generate_manifest(session, container, directory):
     data = common.generate_data(session)
 
@@ -73,8 +76,10 @@ def generate_manifest(session, container, directory):
 
 
 def generate_k8s(session):
+    delete_old_manifests()
+
     for index, pair in enumerate(send_pull_pairs, 1):
-        x = f"{str(session.encoder).replace('$', '')}-{index}"
-        _dir = pathlib.Path(f"{data_dir}-{x}")
+        x = f"k8s-{str(session.encoder).replace('$', '')}-{index}"
+        _dir = data_dir / x
         generate_manifest(session, pair.send, directory=_dir)
         generate_manifest(session, pair.pull, directory=_dir)
