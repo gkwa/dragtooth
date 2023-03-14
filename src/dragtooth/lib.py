@@ -41,29 +41,6 @@ def avoid_sls_crash():
     time.sleep(common.delay_to_prevent_crash.total_seconds())
 
 
-def get_credentials_from_env() -> model.Credentials:
-    def validate_credentials():
-        msgs = []
-        for v1 in ["WEBUI", "PULLTEST"]:
-            for v2 in ["LOGIN", "PASSWORD"]:
-                v3 = f"{v1}_{v2}"
-                msg = f"{v3} is not set, try export {v3}=xyz"
-                if not os.getenv(v3, None):
-                    msgs.append(msg)
-        for msg in msgs:
-            _logger.critical(msg)
-
-        if msgs:
-            sys.exit(-1)
-
-    validate_credentials()
-
-    login = os.getenv("WEBUI_LOGIN", None)
-    password = os.getenv("WEBUI_PASSWORD", None)
-
-    return model.Credentials(login, password)
-
-
 def check_host_is_running(endpoint: str) -> None:
     try:
         _logger.debug(f"feching {endpoint}")
@@ -201,6 +178,15 @@ def get_incoming_ports_dataframe(
 
 def dataframe_to_dict_list(df: pandas.DataFrame) -> typing.List[typing.Dict]:
     return df.to_dict("index")
+
+
+def i_am_authenticated() -> bool:
+    response = module_session.get(common.status_url)
+    _logger.debug("\nauthenticated:")
+    _logger.debug(response.text)
+    if "sign in" in response.text.lower():
+        return False
+    return True
 
 
 def url_to_dataframe_list(url: str) -> typing.List[pandas.DataFrame]:
@@ -467,8 +453,18 @@ def main(args):
 
     check_host_is_running(endpoint=common.status_url)
 
-    creds = get_credentials_from_env()
+    login = os.getenv("VAR_SLS_LIGHT_WEBUI_LOGIN_USERNAME", None)
+    password = os.getenv("VAR_SLS_LIGHT_WEBUI_LOGIN_PASSWORD", None)
+    if not login:
+        raise ValueError("VAR_SLS_LIGHT_WEBUI_LOGIN_USERNAME not defined")
+    if not password:
+        raise ValueError("VAR_SLS_LIGHT_WEBUI_LOGIN_PASSWORD not defined")
+    creds = model.Credentials(login, password)
+
     populate_login_session(credentials=creds)
+
+    if not i_am_authenticated():
+        raise ValueError("not authenticated")
 
     session_lifetime = datetime.timedelta(
         seconds=session_lifetime_duration.to_seconds()

@@ -22,30 +22,30 @@ loader = jinja2.FileSystemLoader(searchpath=templates_dir)
 env = jinja2.Environment(loader=loader, keep_trailing_newline=True)
 
 msg_base_url_invalid = (
-    "SLS_LIGHT_BASE_URL is required."
+    "VAR_SLS_LIGHT_BASE_URL is required."
     " Example: http://hostname.domainname.com/, "
     "quitting prematurely."
 )
 
-base_url = os.getenv("SLS_LIGHT_BASE_URL", None)
+base_url = os.getenv("VAR_SLS_LIGHT_BASE_URL", None)
 status_url = f"{base_url}/light/light_status.php"
 request_url = f"{base_url}/light/sreq.php"
 
 
 def generate_pulltest_login():
-    pulltest_login = os.getenv("PULLTEST_LOGIN", None)
+    pulltest_login = os.getenv("VAR_PULLTEST_LOGIN", None)
 
     if not pulltest_login:
-        raise ValueError("PULLTEST_LOGIN not defined")
+        raise ValueError("VAR_PULLTEST_LOGIN not defined")
 
     return pulltest_login
 
 
 def generate_pulltest_password():
-    pulltest_password = os.getenv("PULLTEST_PASSWORD", None)
+    pulltest_password = os.getenv("VAR_PULLTEST_PASSWORD", None)
 
     if not pulltest_password:
-        raise ValueError("PULLTEST_PASSWORD not defined")
+        raise ValueError("VAR_PULLTEST_PASSWORD not defined")
 
     return pulltest_password
 
