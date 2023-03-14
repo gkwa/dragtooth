@@ -101,7 +101,7 @@ def parse_args(args):
     )
     parser.add_argument(
         "-l",
-        "--session-lifetime-hours",
+        "--session-lifetime",
         type=str,
         default="60s",
         required=False,
