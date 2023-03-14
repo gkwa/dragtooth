@@ -13,8 +13,8 @@ _logger = logging.getLogger(__name__)
 outfile = pathlib.Path("geo.sh")
 request_url = "https://api.ip2location.io"
 session = requests.Session()
-
-db = peewee.SqliteDatabase("geo.db")
+db_path = pathlib.Path("geo.db")
+db = peewee.SqliteDatabase(db_path)
 
 
 class IP2L(peewee.Model):
@@ -105,35 +105,43 @@ def fetch_data_for_ip(ip: str, api_key: str) -> dict:
     return response.json()
 
 
+def db_initialize():
+    if not db_path.exists():
+        _logger.info(f"creating db {db_path.resolve()}")
+    IP2L.create_table()
+
+
+def get_regions_for_ips(ips: list[str]) -> None:
+    db_initialize()
+    api_key = get_api_key_from_env()
+
+    for ip in ips:
+        records = IP2L.select().where(IP2L.ip == ip).dicts()
+        _logger.debug(f"fetching info for {ip}")
+
+        for row in records:
+            pf = pprint.pformat(row)
+            _logger.debug(f"found record for ip {ip} in local cache")
+            _logger.debug(pf)
+
+        if not records:
+            _logger.debug(
+                f"{ip} not found locally, reaching out to {request_url} to fetch info"
+            )
+            dct = fetch_data_for_ip(ip, api_key)
+            dct["as_"] = dct["as"]
+            del dct["as"]
+            ipl = IP2L(**dct)
+            _logger.debug(f"saving {dct=} to cache")
+            ipl.save()
+
+
 if __name__ == "__main__":
     IP2L.create_table()
     api_key = get_api_key_from_env()
     ips = [
-        "104.149.140.130",
-        "172.30.0.119",
-        "172.30.0.19",
-        "172.30.0.201",
-        "172.30.0.215",
-        "172.30.0.235",
-        "172.30.0.249",
-        "172.30.0.30",
-        "172.30.1.120",
-        "172.30.1.132",
-        "172.30.1.144",
-        "172.30.1.146",
-        "172.30.1.162",
         "172.30.1.236",
-        "174.195.132.192",
-        "174.236.100.88",
-        "174.243.177.111",
-        "174.243.181.106",
-        "174.243.245.199",
-        "174.61.166.74",
-        "184.72.223.50",
-        "24.56.229.65",
-        "44.205.139.197",
         "89.189.176.193",
-        "96.79.192.49",
         "98.97.56.92",
     ]
 

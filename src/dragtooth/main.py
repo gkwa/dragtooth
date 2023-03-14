@@ -107,6 +107,14 @@ def parse_args(args):
         required=False,
         help="session lifetime in units like this, eg 10s, 1m, 1d, 1h30s, ...",
     )
+    parser.add_argument(
+        "-g",
+        "--update-geolocation",
+        action="store_true",
+        help="map ip address to region",
+        default=False,
+        required=False,
+    )
 
     return parser.parse_args(args)
 

@@ -499,8 +499,11 @@ def main(args):
         _logger.warning("quitting prematurely")
         sys.exit(-1)
 
-    get_remaining_unused_ports()
-    geolocation.ip_geolocation(get_ip_addresses())
+    if args.update_geolocation:
+        get_remaining_unused_ports()
+        # geolocation.ip_geolocation(get_ip_addresses())
+        ips_list = get_ip_addresses()
+        geolocation.get_regions_for_ips(ips_list)
 
     counter = session_count
     sessions = []
