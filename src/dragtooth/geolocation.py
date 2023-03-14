@@ -1,10 +1,10 @@
-import dataclasses
 import io
 import logging
 import os
 import pathlib
 import sys
 
+import peewee
 import requests
 
 _logger = logging.getLogger(__name__)
@@ -13,23 +13,25 @@ outfile = pathlib.Path("geo.sh")
 request_url = "https://api.ip2location.io"
 session = requests.Session()
 
+db = peewee.SqliteDatabase("geo.db")
 
-@dataclasses.dataclass
-class IP2LocationRecord:
-    ip: str
-    country_code: str
-    country_name: str
-    region_name: str
-    city_name: str
-    latitude: str
-    longitude: str
-    zip_code: str
-    time_zone: str
-    asn: str
-    as_: str = dataclasses.field(
-        metadata={"description": "renamed from 'as' to 'as_' to prevent syntax error"}
-    )
-    is_proxy: str
+
+class IP2Location(peewee.Model):
+    ip = peewee.CharField()
+    country_code = peewee.CharField()
+    country_name = peewee.CharField()
+    region_name = peewee.CharField()
+    city_name = peewee.CharField()
+    latitude = peewee.CharField()
+    longitude = peewee.CharField()
+    zip_code = peewee.CharField()
+    time_zone = peewee.CharField()
+    asn = peewee.CharField()
+    as_ = peewee.CharField()
+    is_proxy = peewee.CharField()
+
+    class Meta:
+        database = db  # This model uses the "people.db" database.
 
     @classmethod
     def from_dict(cls, dct):
@@ -110,37 +112,3 @@ def fetch_data_for_ip(ip: str, api_key: str) -> dict:
     _logger.debug(response.text)
 
     return response.json()
-
-
-def test():
-    # These two lines enable debugging at httplib level
-    # (requests->urllib3->http.client) You will see the REQUEST,
-    # including HEADERS and DATA, and RESPONSE with HEADERS but
-    # without DATA. The only thing missing will be the response.body
-    # which is not logged.
-
-    try:
-        import http.client as http_client
-    except ImportError:
-        # Python 2
-        import httplib as http_client
-
-    http_client.HTTPConnection.debuglevel = 1
-
-    # You must initialize logging, otherwise you'll not see debug output.
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
-    requests_log = logging.getLogger("requests.packages.urllib3")
-    requests_log.setLevel(logging.DEBUG)
-    requests_log.propagate = True
-
-    ip = "89.189.176.193"
-    api_key = get_api_key_from_env()
-    dct = fetch_data_for_ip(ip, api_key)
-    ipl = IP2LocationRecord.from_dict(dct)
-    print(ipl)
-    _logger.debug(dct)
-
-
-if __name__ == "__main__":
-    test()
