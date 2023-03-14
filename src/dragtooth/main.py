@@ -102,11 +102,10 @@ def parse_args(args):
     parser.add_argument(
         "-l",
         "--session-lifetime-hours",
-        type=float,
-        default=0.5,
+        type=str,
+        default="60s",
         required=False,
-        metavar="FLOAT",
-        help="session lifetime in hours",
+        help="session lifetime in units like this, eg 10s, 1m, 1d, 1h30s, ...",
     )
 
     return parser.parse_args(args)

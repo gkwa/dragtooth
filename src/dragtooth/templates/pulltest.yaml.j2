@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pulltest-{{ data.pair }}-deployment
+  name: pulltest-{{ data.reporter }}-deployment
   namespace: pulltest
   labels:
     app: pulltest
@@ -33,5 +33,5 @@ spec:
                /rep '{{ data.reporter }}' \
                /s_login '{{ data.pulltest_login }}' /s_pass '{{ data.pulltest_password }}' \
                /session '{{ data.decoder }}' \
-               /pulltest 500
+               /pulltest 999999
            EOF

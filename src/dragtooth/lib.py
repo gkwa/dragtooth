@@ -458,7 +458,7 @@ def get_available_port() -> int | None:
 
 def main(args):
     session_count = args.session_count
-    session_lifetime_hours = args.session_lifetime_hours
+    session_lifetime_duration = durations.Duration(args.session_lifetime_hours)
 
     d1 = args.prevent_crash_delay
     duration = durations.Duration(d1)
@@ -470,7 +470,9 @@ def main(args):
     creds = get_credentials_from_env()
     populate_login_session(credentials=creds)
 
-    session_lifetime = datetime.timedelta(hours=session_lifetime_hours)
+    session_lifetime = datetime.timedelta(
+        seconds=session_lifetime_duration.to_seconds()
+    )
 
     check_sls_offline()
 
