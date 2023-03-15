@@ -1,0 +1,9 @@
+{% for region, ips in data.items() %}
+
+{{ region }}
+
+{%- for ip in ips %}
+ {{ ip }}
+{%- endfor -%}
+
+{% endfor %}

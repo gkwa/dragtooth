@@ -15,7 +15,7 @@ import pytz
 import requests
 import requests.exceptions
 
-from . import common, geolocation, k8s, model, scripts
+from . import common, geolocate, k8s, model, scripts
 
 _logger = logging.getLogger(__name__)
 
@@ -503,7 +503,7 @@ def main(args):
         get_remaining_unused_ports()
         # geolocation.ip_geolocation(get_ip_addresses())
         ips_list = get_ip_addresses()
-        geolocation.get_regions_for_ips(ips_list)
+        geolocate.get_regions_for_ips(ips_list)
 
     counter = session_count
     sessions = []

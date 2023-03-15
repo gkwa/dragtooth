@@ -1,3 +1,4 @@
+import collections
 import io
 import logging
 import os
@@ -5,8 +6,11 @@ import pathlib
 import pprint
 import sys
 
+import jinja2
 import peewee
 import requests
+
+from . import common
 
 _logger = logging.getLogger(__name__)
 
@@ -34,6 +38,34 @@ class IP2L(peewee.Model):
     class Meta:
         database = db  # see module level db var
         db_table = "geo"
+
+
+def view2():
+    q_records = IP2L.select().dicts()
+    records = {}
+    for dct in q_records:
+        region = dct["region_name"]
+        ip = dct["ip"]
+        if region == "-":
+            region = "internal"
+        records.setdefault(region, []).append(ip)
+
+    loader = jinja2.FileSystemLoader(searchpath=common.templates_dir)
+    env = jinja2.Environment(loader=loader, keep_trailing_newline=True)
+    template = env.get_template("geo_view2.j2")
+    text = template.render(data=records)
+    print(text)
+
+
+def view1():
+    q_records = IP2L.select()
+    q_regions = IP2L.select().group_by(IP2L.region_name)
+
+    regions = [x.region_name for x in q_regions]
+    c = collections.Counter(regions)
+    for rec in q_records:
+        c[rec.region_name] += 1
+    print(c)
 
 
 def ip_geolocation(ips: list[str]) -> dict:
@@ -125,9 +157,11 @@ def get_regions_for_ips(ips: list[str]) -> None:
             _logger.debug(pf)
 
         if not records:
-            _logger.debug(
-                f"{ip} not found locally, reaching out to {request_url} to fetch info"
+            msg = (
+                f"{ip} not found locally, reaching out "
+                f"to {request_url} to fetch info"
             )
+            _logger.debug(msg)
             dct = fetch_data_for_ip(ip, api_key)
             dct["as_"] = dct["as"]
             del dct["as"]
@@ -136,8 +170,8 @@ def get_regions_for_ips(ips: list[str]) -> None:
             ipl.save()
 
 
-if __name__ == "__main__":
-    IP2L.create_table()
+def test_fetch_and_save():
+    db_initialize()
     api_key = get_api_key_from_env()
     ips = [
         "172.30.1.236",
@@ -157,3 +191,9 @@ if __name__ == "__main__":
             pprint.pprint(dct)
             ipl = IP2L(**dct)
             ipl.save()
+
+
+if __name__ == "__main__":
+    view2()
+#    view1()
+# test_fetch_and_save()
