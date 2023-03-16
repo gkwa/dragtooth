@@ -148,9 +148,7 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting script...")
     lib.main(args)
-    _logger.info("Script ends here")
 
 
 def run():

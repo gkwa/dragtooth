@@ -54,11 +54,13 @@ def generate_data(session):
     pulltest_password = generate_pulltest_password()
     pulltest_login = generate_pulltest_login()
 
-    slug = f"slug-{session.encoder}-{session.decoder}".lower().replace("$", "")
-    reporter = f"reporter-{session.encoder}-{session.decoder}".lower().replace("$", "")
+    encoder_decoder_id = f"{session.encoder}-{session.decoder}"
+    slug = f"slug-{encoder_decoder_id}".lower().replace("$", "")
+    reporter = f"reporter-{encoder_decoder_id}".lower().replace("$", "")
 
     data = {
         "ip": "172.30.0.139",
+        "encoder_decoder_id": encoder_decoder_id,
         "drm": session.encoder,
         "network1": session.encoder,
         "NET1": session.decoder,
